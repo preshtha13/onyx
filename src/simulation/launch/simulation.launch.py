@@ -2,7 +2,7 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument, IncludeLaunchDescription, SetEnvironmentVariable,
     TimerAction)
-from launch.conditions import UnlessCondition
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution,
@@ -12,8 +12,11 @@ from launch_ros.substitutions import FindPackagePrefix, FindPackageShare
 
 
 def generate_launch_description():
+    world_name = LaunchConfiguration('world')
+    world_sdf = PythonExpression(["'", world_name, ".sdf'"])
+
     world = PathJoinSubstitution([
-        FindPackageShare('simulation'), 'worlds', 'tekno_world.sdf'])
+        FindPackageShare('simulation'), 'worlds', world_sdf])
 
     gz_flags = PythonExpression([
         "'-r -s ' if '", LaunchConfiguration('headless'),
@@ -42,7 +45,7 @@ def generate_launch_description():
             package='ros_gz_sim',
             executable='create',
             arguments=[
-                '-world', 'tekno_world',
+                '-world', world_name,
                 '-topic', 'robot_description',
                 '-name', 'onyx',
             ],
@@ -103,6 +106,11 @@ def generate_launch_description():
         output='screen',
     )
 
+    show_sim_rviz = PythonExpression([
+        "'", LaunchConfiguration('headless'), "' != 'true' and '",
+        LaunchConfiguration('use_rviz'), "' == 'true'"
+    ])
+
     rviz = Node(
         package='rviz2',
         executable='rviz2',
@@ -112,14 +120,20 @@ def generate_launch_description():
                 FindPackageShare('simulation'), 'rviz', 'onyx_lidar.rviz']),
         ],
         parameters=[{'use_sim_time': True}],
-        condition=UnlessCondition(LaunchConfiguration('headless')),
+        condition=IfCondition(show_sim_rviz),
         output='screen',
     )
 
     return LaunchDescription([
         DeclareLaunchArgument(
+            'world', default_value='tekno_world',
+            description='World name without .sdf (tekno_world or mppi_test_world).'),
+        DeclareLaunchArgument(
             'headless', default_value='false',
             description='true = no window (use for training).'),
+        DeclareLaunchArgument(
+            'use_rviz', default_value='true',
+            description='Launch simulation RViz2 window.'),
         SetEnvironmentVariable('GZ_SIM_RESOURCE_PATH', resource_path),
         gz_sim,
         spawn_robot,

@@ -1,11 +1,19 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    sim_rviz = PythonExpression([
+        "'false' if '", LaunchConfiguration('mode'), "' == 'mppi' else 'true'"
+    ])
+
+    nav_rviz = PythonExpression([
+        "'true' if '", LaunchConfiguration('headless'), "' != 'true' else 'false'"
+    ])
+
     simulation = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -14,7 +22,11 @@ def generate_launch_description():
                 'simulation.launch.py',
             ])
         ),
-        launch_arguments={'headless': LaunchConfiguration('headless')}.items(),
+        launch_arguments={
+            'world': LaunchConfiguration('world'),
+            'headless': LaunchConfiguration('headless'),
+            'use_rviz': sim_rviz,
+        }.items(),
     )
 
     base = IncludeLaunchDescription(
@@ -27,6 +39,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'use_sim_time': 'true',
+            'use_rviz': nav_rviz,
             'mode': LaunchConfiguration('mode'),
             'train': LaunchConfiguration('train'),
             'policy': LaunchConfiguration('policy'),
@@ -34,6 +47,11 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'world',
+            default_value='tekno_world',
+            description='World name without .sdf (tekno_world or mppi_test_world).',
+        ),
         DeclareLaunchArgument(
             'mode',
             default_value='mppi',
