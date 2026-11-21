@@ -1,5 +1,5 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare
@@ -46,6 +46,11 @@ def generate_launch_description():
         }.items(),
     )
 
+    base_delayed = TimerAction(
+        period=7.0,
+        actions=[base],
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'world',
@@ -73,5 +78,5 @@ def generate_launch_description():
             description='Run Gazebo in headless mode.',
         ),
         simulation,
-        base,
+        base_delayed,
     ])
